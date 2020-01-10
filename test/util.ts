@@ -11,11 +11,6 @@ export * from "./legacy-utils";
 
 export const nodeStub = ts.createNode(ts.SyntaxKind.Unknown);
 
-// Get a mock transformer to use for testing
-export function makeTestTransformer(luaTarget = tstl.LuaTarget.Lua53): tstl.LuaTransformer {
-    return new tstl.LuaTransformer(ts.createProgram([], { luaTarget }));
-}
-
 export function parseTypeScript(
     typescript: string,
     target: tstl.LuaTarget = tstl.LuaTarget.Lua53
@@ -481,9 +476,7 @@ const createTestBuilderFactory = <T extends TestBuilder>(
             substitutions = substitutions.map(s => formatCode(s));
         }
 
-        tsCode = template
-            .map((chunk, index) => (substitutions[index - 1] !== undefined ? substitutions[index - 1] : "") + chunk)
-            .join("");
+        tsCode = template.map((chunk, index) => (substitutions[index - 1] ?? "") + chunk).join("");
     }
 
     return new builder(tsCode);

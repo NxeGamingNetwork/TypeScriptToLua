@@ -1,5 +1,3 @@
-import * as ts from "typescript";
-import * as TSTLErrors from "../../../src/TSTLErrors";
 import * as util from "../../util";
 
 test("Arrow Function Expression", () => {
@@ -196,18 +194,6 @@ test("Function call", () => {
     `.expectToMatchJsResult();
 });
 
-test("Invalid property access call transpilation", () => {
-    const transformer = util.makeTestTransformer();
-
-    const mockObject: any = {
-        expression: ts.createLiteral("abc"),
-    };
-
-    expect(() => transformer.transformPropertyCall(mockObject as ts.CallExpression)).toThrowExactError(
-        TSTLErrors.InvalidPropertyCall(util.nodeStub)
-    );
-});
-
 test("Recursive function definition", () => {
     util.testFunction`
         function f() { return typeof f; };
@@ -251,26 +237,26 @@ test("Object method declaration", () => {
     `.expectToMatchJsResult();
 });
 
-test.each([{ args: ["bar"], expected: "foobar" }, { args: ["baz", "bar"], expected: "bazbar" }])(
-    "Function overload (%p)",
-    ({ args, expected }) => {
-        util.testFunction`
-            class O {
-                prop = "foo";
-                method(s: string): string;
-                method(this: void, s1: string, s2: string): string;
-                method(s1: string) {
-                    if (typeof this === "string") {
-                        return this + s1;
-                    }
-                    return this.prop + s1;
+test.each([
+    { args: ["bar"], expected: "foobar" },
+    { args: ["baz", "bar"], expected: "bazbar" },
+])("Function overload (%p)", ({ args, expected }) => {
+    util.testFunction`
+        class O {
+            prop = "foo";
+            method(s: string): string;
+            method(this: void, s1: string, s2: string): string;
+            method(s1: string) {
+                if (typeof this === "string") {
+                    return this + s1;
                 }
-            };
-            const o = new O();
-            return o.method(${util.formatCode(...args)});
-        `.expectToEqual(expected);
-    }
-);
+                return this.prop + s1;
+            }
+        };
+        const o = new O();
+        return o.method(${util.formatCode(...args)});
+    `.expectToEqual(expected);
+});
 
 test("Nested Function", () => {
     util.testFunction`
@@ -290,7 +276,10 @@ test("Nested Function", () => {
     `.expectToMatchJsResult();
 });
 
-test.each([{ s1: "abc", s2: "abc" }, { s1: "abc", s2: "def" }])("Dot vs Colon method call (%p)", ({ s1, s2 }) => {
+test.each([
+    { s1: "abc", s2: "abc" },
+    { s1: "abc", s2: "def" },
+])("Dot vs Colon method call (%p)", ({ s1, s2 }) => {
     util.testFunction`
         class MyClass {
             dotMethod(this: void, s: string) {
@@ -421,14 +410,17 @@ test("Function local overriding export", () => {
 });
 
 test("Function using global as this", () => {
-    const tsHeader = `
-        var foo = "foo";
+    // Value is provided with top-level return with ts-ignore, because modules are always strict.
+    // TODO: Provide a different builder kind for such tests?
+    util.testModule`
+        (globalThis as any).foo = "foo";
         function bar(this: any) {
             return this.foo;
         }
-    `;
 
-    util.testExpression`foo`.setTsHeader(tsHeader).expectToMatchJsResult();
+        // @ts-ignore
+        return bar();
+    `.expectToEqual("foo");
 });
 
 test("Function rest binding pattern", () => {
